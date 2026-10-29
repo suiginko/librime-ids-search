@@ -175,6 +175,34 @@ std::string Join(const std::vector<std::string>& v, const std::string& sep) {
   return r;
 }
 
+std::string FormatIds(const std::string& raw_ids, const std::string& format) {
+  if (format == "unicode" || format.empty()) {
+    return raw_ids;
+  }
+  std::string out;
+  size_t i = 0;
+  size_t n = raw_ids.size();
+  while (i < n) {
+    size_t old = i;
+    uint32_t cp = DecodeNext(raw_ids, &i);
+    if (cp >= 0x2FF0 && cp <= 0x2FFB) {
+      if (format == "bracket") {
+        static const char* kIdcLabels[] = {
+            "[左右]", "[上下]", "[左中右]", "[上中下]", "[全包]", "[上包]",
+            "[下包]", "[左包]", "[左上包]", "[右上包]", "[左下包]", "[交叉]"};
+        out += kIdcLabels[cp - 0x2FF0];
+      } else if (format == "plain") {
+        // 直接省略 IDC 结构字符
+      } else {
+        out += raw_ids.substr(old, i - old);
+      }
+    } else {
+      out += raw_ids.substr(old, i - old);
+    }
+  }
+  return out;
+}
+
 // Epoch 标记集：O(1) 去重，零分配。
 struct EpochSet {
   std::vector<uint32_t> mark;
@@ -592,12 +620,27 @@ std::vector<std::string> SegmentAlphaString(IdsStore& store,
     return items;
   }
   if (mode == "flypy" || mode == "zrm") {
+    // 先尝试全拼切分：若整个字符串能切成一串合法音节，则优先按全拼处理。
+    // 这样 Ikouhao / Inihao 这类全拼输入不会被误当成等长的双拼编码。
+    std::vector<std::string> segs = SegmentPinyinOptimal(store, chunk);
+    if (!segs.empty()) {
+      bool all_valid = true;
+      for (const auto& seg : segs) {
+        if (store.valid_pinyins().count(seg) == 0) {
+          all_valid = false;
+          break;
+        }
+      }
+      if (all_valid) {
+        g_seg_cache.Put(key, segs);
+        return segs;
+      }
+    }
     std::vector<std::string> sp;
     if (DecodeShuangpinString(store, chunk, mode, &sp) && !sp.empty()) {
       g_seg_cache.Put(key, sp);
       return sp;
     }
-    std::vector<std::string> segs = SegmentPinyinOptimal(store, chunk);
     if (!segs.empty()) {
       g_seg_cache.Put(key, segs);
       return segs;
@@ -923,12 +966,12 @@ int64_t ScoreCandidate(
   const HotRec& h = store.Hot(id);
   int freq = static_cast<int>(h.freq);
   int depth = static_cast<int>(h.depth);
-  if (order_count == 1 && !matchers.empty()) {
+  size_t total = matchers.size();
+  if (order_count == 1 && total == 1 && !matchers.empty()) {
     uint16_t ct = h.char_token;
     if (ct != kNoToken && MatcherHas(*matchers[0], ct))
       return 30000000 + freq;
   }
-  size_t total = matchers.size();
   int mt = 0;
   if (total >= 1 && total <= 31 && (h.flags & (1u << total))) {
     bool all_singleton = true;
@@ -953,9 +996,9 @@ int64_t ScoreCandidate(
   }
   int64_t common_bonus = (freq >= 1900000) ? 5000000 : 0;
   if (mt == 2)
-    return 20000000 + common_bonus + freq;
+    return 50000000 + common_bonus + freq;
   if (mt == 1)
-    return 15000000 + common_bonus + freq;
+    return 40000000 + common_bonus + freq;
   return static_cast<int64_t>(freq) - static_cast<int64_t>(depth) * 1000;
 }
 
@@ -1129,9 +1172,6 @@ std::vector<uint32_t> GetCandidatesForTerm(
             if (HasKey(store, key))
               AddPostingCps(store, key, limit, q, &cp_list, &seen,
                             disabled_blocks);
-            else if (count > 1 && HasKey(store, store.TokenStr(t)))
-              AddPostingCps(store, store.TokenStr(t), limit, q, &cp_list, &seen,
-                            disabled_blocks);
             if (static_cast<uint32_t>(cp_list.size()) >= limit)
               return;
           }
@@ -1151,9 +1191,6 @@ std::vector<uint32_t> GetCandidatesForTerm(
             if (HasKey(store, key))
               AddPostingCps(store, key, limit, quota, &cp_list, &seen,
                             disabled_blocks);
-            else if (count > 1 && HasKey(store, store.TokenStr(t)))
-              AddPostingCps(store, store.TokenStr(t), limit, quota, &cp_list,
-                            &seen, disabled_blocks);
             if (static_cast<uint32_t>(cp_list.size()) >= limit)
               break;
           }
@@ -1304,7 +1341,7 @@ std::vector<uint32_t> SearchComponents(IdsStore& store,
     scored.reserve(cands.size());
     for (uint32_t id : cands) {
       int64_t sc = ScoreCandidate(store, id, matchers, order_count);
-      if (direct_rank) {
+      if (pq.counts.at(term) == 1 && matchers.size() == 1 && direct_rank) {
         uint32_t cp = store.CpOfId(id);
         auto rit = direct_rank->find(cp);
         if (rit != direct_rank->end()) {
@@ -1480,6 +1517,7 @@ void IdsSearchTranslator::Initialize() {
   config->GetString(ns + "tips", &tips_);
   if (tips_.empty())
     tips_ = "〔部件检字〕";
+  config->GetString(ns + "ids_format", &ids_format_);
 
   bool v;
   if (config->GetBool(ns + "show_pinyin", &v))
@@ -1642,8 +1680,10 @@ rime::an<rime::Translation> IdsSearchTranslator::BuildCandidates(
     std::vector<std::string> parts;
     if (sw_p && py_len > 0)
       parts.push_back(std::string(reinterpret_cast<const char*>(py), py_len));
-    if (sw_i && ids_len > 0)
-      parts.push_back(std::string(reinterpret_cast<const char*>(ids), ids_len));
+    if (sw_i && ids_len > 0) {
+      std::string ids_str(reinterpret_cast<const char*>(ids), ids_len);
+      parts.push_back(FormatIds(ids_str, ids_format_));
+    }
     uint32_t cp = store.CpOfId(id);
     if (sw_u) {
       char buf[8];

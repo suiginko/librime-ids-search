@@ -1,0 +1,87 @@
+# 独立部件检字方案示例
+#
+# 将本文件复制到 Rime 用户目录，并将 default.yaml 的 schema_list 加入 ids_search。
+# data_file 相对用户数据目录解析；也可以写成绝对路径。
+schema:
+  schema_id: ids_search
+  name: "部件模糊检字"
+  version: "1.7"
+  author: "librime-ids-search"
+  description: |
+    C++ 原生部件检字：I 模式 + O 模式混合检字。
+
+switches:
+  - name: ascii_mode
+    reset: 0
+  - name: show_pinyin
+    reset: 1
+  - name: show_ids
+    reset: 1
+  - name: show_unicode
+    reset: 1
+  - name: show_block
+    reset: 1
+
+engine:
+  processors:
+    - ids_hybrid_processor
+    - ascii_composer
+    - recognizer
+    - key_binder
+    - speller
+    - punctuator
+    - selector
+    - navigator
+    - express_editor
+  segmentors:
+    - ids_hybrid_segmentor
+    - matcher
+    - abc_segmentor
+    - fallback_segmentor
+  translators:
+    - echo_translator
+    - ids_search_translator
+    - ids_hybrid_translator
+  filters:
+    - ids_hybrid_filter
+    - uniquifier
+    - ids_hybrid_cleaner
+
+speller:
+  alphabet: "abcdefghijklmnopqrstuvwxyz'"
+  delimiter: " '"
+
+recognizer:
+  patterns:
+    ids_search: '^I[^0-9,.;=\[\]\s-]*$'
+
+menu:
+  page_size: 5
+
+ids_search:
+  data_file: build/ids_data.bin
+  tag: ids_search
+  prefix: "I"
+  tips: "〔部件检字〕"
+  max_results: 60
+  shuangpin_scheme: flypy
+  show_pinyin: true
+  show_ids: true
+  show_unicode: true
+  show_block: true
+  ids_format: unicode
+  custom_file: ids_custom.txt
+
+ids_hybrid:
+  data_file: build/ids_data.bin
+  tag: ids_search_hybrid
+  prefix: "O"
+  tips: "〔汉字部件检字〕"
+  max_results: 60
+  shuangpin_scheme: flypy
+  show_pinyin: true
+  show_ids: true
+  show_unicode: true
+  show_block: true
+  ids_format: unicode
+  custom_file: ids_custom.txt

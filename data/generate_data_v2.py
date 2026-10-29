@@ -8,6 +8,7 @@ Supports all 97,680+ Unicode CJK characters up to Unicode 16.0 (Basic + Ext A~I)
 
 import os
 import re
+import json
 import collections
 import unicodedata
 import pypinyin
@@ -16,8 +17,7 @@ BABELSTONE_IDS_PATH = "IDS_raw.TXT"
 ZITOOLS_LV2_PATH = "ids_zitools.txt"
 ZITOOLS_LV1_PATH = "ids_lv1.txt"
 EQUIVALENT_UNIFIED_PATH = "EquivalentUnifiedIdeograph.txt"
-_appdata = os.environ.get('APPDATA', '')
-CHARSET_PATH = "wanxiang_charset.dict.yaml" if os.path.exists("wanxiang_charset.dict.yaml") else os.path.join(_appdata, 'Rime', 'wanxiang_charset.dict.yaml')
+CHARSET_PATH = "wanxiang_charset.dict.yaml"
 OUTPUT_INDEX = "ids_index.txt"
 OUTPUT_META = "ids_meta.txt"
 
@@ -432,6 +432,22 @@ for _st_ch, _st_info in STROKE_DATA.items():
         if _py not in RADICAL_PINYIN[_st_ch]:
             RADICAL_PINYIN[_st_ch].append(_py)
 
+# Merge Excel Sheet 2 (难认拆字部件读音对照表) mappings
+_base_dir = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else 'data'
+_excel_pinyin_path = os.path.join(_base_dir, "excel_sheet2_pinyin.json")
+if not os.path.exists(_excel_pinyin_path):
+    _excel_pinyin_path = "excel_sheet2_pinyin.json"
+if os.path.exists(_excel_pinyin_path):
+    with open(_excel_pinyin_path, 'r', encoding='utf-8') as _ef:
+        _excel_pys = json.load(_ef)
+        for _c, _pys in _excel_pys.items():
+            if _c not in RADICAL_PINYIN:
+                RADICAL_PINYIN[_c] = []
+            for _py in _pys:
+                if _py not in RADICAL_PINYIN[_c]:
+                    RADICAL_PINYIN[_c].append(_py)
+    print(f"Loaded {len(_excel_pys)} component mappings from Excel Sheet 2 (excel_sheet2_pinyin.json).")
+
 # Standard Kangxi radicals and common atomic radicals that should not be decomposed further when computing direct keys
 BASIC_RADICALS = set(
     '一丨丿丶乙亅二亠人儿入八冂冖冫几凵刀力勹匕匚匸十卜卩厂厶又'
@@ -806,10 +822,13 @@ def main():
     for ch in char_tree:
         base_counts = collections.Counter(get_counts(ch, memo, set()))
         for alt_subs in char_all_trees.get(ch, []):
+            alt_counts = collections.Counter()
             for sub in alt_subs:
-                base_counts[sub] = max(base_counts[sub], 1)
+                alt_counts[sub] += 1
                 for k, v in get_counts(sub, memo, set()).items():
-                    base_counts[k] = max(base_counts[k], v)
+                    alt_counts[k] += v
+            for k, v in alt_counts.items():
+                base_counts[k] = max(base_counts[k], v)
         all_char_counts[ch] = base_counts
 
     # Build equiv lookup
@@ -884,30 +903,65 @@ def main():
             '乙', '乚', '乛', '𠃊', '𠃍', '𠃋', '𠃌',
             '㇕', '㇗', '㇄', '㇅', '㇆', '㇇', '㇈', '㇉', '㇊',
             '㇋', '㇌', '㇍', '㇎', '㇖', '㇘', '㇛', '㇜', '㇞',
-            '㇟', '㇠', '㇡', '㇢', '㇂', '㇁', '亅', '㇃'
+            '㇟', '㇠', '㇡', '㇢', '㇂', '㇁', '亅', '㇃',
+            '𠃉', '𠃑', '𠄌', '𠄎', '𡿨', '𬼂'
         ],
         'shui': ['氵', '水', '氺', '⺡', '冫'],
-        'cao': ['艹', '艸', '⺾', '⻀'],
-        'er': ['阝', '卩', '⻖', '⻗'],
-        'ren': ['亻', '人', '彳', '⺅', '𠆢'],
+        'cao': ['艹', '艸', '⺾', '⻀', '屮', '廾', '卄'],
+        'er': ['阝', '卩', '⻖', '⻗', '儿', '兒'],
+        'ren': ['亻', '人', '彳', '⺅', '𠆢', '𠂉'],
         'shou': ['扌', '手', '龵'],
         'huo': ['灬', '火', '⺣'],
         'xin': ['忄', '心', '⺖', '⺗'],
         'jin': ['钅', '金', '釒', '⻐'],
         'yan': ['讠', '言', '訁'],
-        'si': ['纟', '糸', '糹', '⺰', '⺱'],
+        'si': ['纟', '糸', '糹', '⺰', '⺱', '丝', '厶', '龴'],
         'quan': ['犭', '犬', '⺲'],
-        'zou': ['辶', '辵', '⻌', '⻍'],
+        'zou': ['辶', '辵', '⻌', '⻍', '龰', '廴'],
         'wen': ['文', '攵', '夂', '夊', '亠', '⺙', '攴'],
-        'dang': ['龸'],
-        'xiao': ['小', '⺌'],
-        'shan': ['山', '⺕'],
+        'dang': ['龸', '当', '當'],
+        'xiao': ['小', '⺌', '𡭔'],
+        'shan': ['山', '⺕', '彐', '𫜹', '𬼖'],
         'feng': ['丰', '龶'],
-        'ge': ['鬲', '戈', '革'],
+        'ge': ['鬲', '戈', '革', '𭠍'],
         'pan': ['爿', '丬'],
         'zhua': ['爪', '爫'],
         'chang': ['长', '長', '厂', '鬯'],
         'zhang': ['长', '長'],
+        'kuang': ['凵', '冂', '匚', '匸', 'コ'],
+        'gai': ['宀', '冖', '龸', '𰃮'],
+        'xing': ['兴', '𭕄'],
+        'juan': ['龹', '卷', '券'],
+        'heng': ['一', '㇐'],
+        'shu': ['丨', '亅', '㇑'],
+        'pie': ['丿', '㇒'],
+        'dian': ['丶', '乀', '㇔'],
+        'qian': ['佥', '僉', '㑒', '䒑'],
+        'dong': ['东', '東', '𫠣'],
+        'chuan': ['川', '巛', '𫶧'],
+        'mu': ['木', '目', '母', '亩'],
+        'kou': ['口', '囗'],
+        'tu': ['土', '士'],
+        'ri': ['日', '曰'],
+        'yue': ['月', '肉', '⺝', '⺼'],
+        'tian': ['田'],
+        'he': ['禾'],
+        'mi': ['米'],
+        'nv': ['女'],
+        'zi': ['子'],
+        'ma': ['马', '馬'],
+        'niao': ['鸟', '鳥'],
+        'yu': ['鱼', '魚', '雨', '羽', '玉'],
+        'bai': ['白', '百'],
+        'shi': ['十', '石', '士', '尸', '示', '食', '矢', '氏', '礻', '饣', '丆', '𠂇'],
+        'che': ['车', '車'],
+        'fang': ['方', '匚'],
+        'gong': ['工', '弓', '共'],
+        'wang': ['王', '网', '罒', '⺫'],
+        'li': ['力', '立', '里', '刂'],
+        'dao': ['刀', '刂', '⺈'],
+        'chi': ['尺', '齿', '彳', '赤'],
+        'zhu': ['竹', '⺮', '主'],
     }
 
     def comp_sort_key(py, c):
@@ -1183,7 +1237,7 @@ def main():
             c2 = C2of(c)
             if c2 in tok_id:
                 ids.add(tok_id[c2])
-        ids = sorted(ids)
+        ids = sorted(ids, key=lambda t_id: comp_sort_key(py, tokens[t_id]))
         pbs = py.encode('utf-8')
         PB += struct.pack('<H', len(pbs)); PB += pbs
         PB += struct.pack('<H', len(ids))

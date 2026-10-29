@@ -1,0 +1,51 @@
+# 挂接到现有 Rime 方案的参考 patch
+#
+# 用法：
+#   1. 把本文件内容合并到 <方案名>.custom.yaml 的 patch: 节点下；
+#   2. 确认方案已有 matcher segmentor（I 模式依赖它给输入打 ids_search 标签）；
+#   3. 把 ids_data.bin 放到用户数据目录的 build/ 下；
+#   4. 重新部署。
+#
+# O 模式不依赖 matcher；I 模式没有 matcher 时，可改用
+# examples/ids_search.schema.yaml 作为独立方案。
+
+patch:
+  engine/processors/@before 0: ids_hybrid_processor
+  engine/segmentors/@before 0: ids_hybrid_segmentor
+  engine/filters/@before 0: ids_hybrid_filter
+
+  engine/translators/+:
+    - ids_search_translator
+    - ids_hybrid_translator
+  engine/filters/+:
+    - ids_hybrid_cleaner
+
+  recognizer/patterns/ids_search: '^I[^0-9,.;=\[\]\s-]*$'
+
+  ids_search:
+    data_file: build/ids_data.bin
+    tag: ids_search
+    prefix: "I"
+    tips: "〔部件检字〕"
+    max_results: 60
+    shuangpin_scheme: flypy
+    show_pinyin: true
+    show_ids: true
+    show_unicode: true
+    show_block: true
+    ids_format: unicode
+    custom_file: ids_custom.txt
+
+  ids_hybrid:
+    data_file: build/ids_data.bin
+    tag: ids_search_hybrid
+    prefix: "O"
+    tips: "〔汉字部件检字〕"
+    max_results: 60
+    shuangpin_scheme: flypy
+    show_pinyin: true
+    show_ids: true
+    show_unicode: true
+    show_block: true
+    ids_format: unicode
+    custom_file: ids_custom.txt

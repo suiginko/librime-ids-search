@@ -49,6 +49,7 @@ class IdsSearchTranslator : public rime::Translator {
   bool has_sw_unicode_ = false;
   bool has_sw_block_ = false;
   std::string tips_;
+  std::string ids_format_ = "unicode";
   std::string data_path_;
   std::string custom_path_;
   rime::hash_set<int> disabled_blocks_;
