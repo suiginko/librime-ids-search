@@ -48,8 +48,8 @@ uint32_t DecodeNext(const std::string& s, size_t* i) {
   uint32_t b3 = static_cast<unsigned char>(s[*i + 2]);
   uint32_t b4 = static_cast<unsigned char>(s[*i + 3]);
   *i += 4;
-  return (b1 - 0xF0) * 0x40000 + (b2 - 0x80) * 0x1000 +
-         (b3 - 0x80) * 0x40 + (b4 - 0x80);
+  return (b1 - 0xF0) * 0x40000 + (b2 - 0x80) * 0x1000 + (b3 - 0x80) * 0x40 +
+         (b4 - 0x80);
 }
 
 std::string CpToUtf8(uint32_t cp) {
@@ -126,9 +126,8 @@ std::string FormatIds(const std::string& raw_ids, const std::string& format) {
     if (IsIdc(cp)) {
       if (format == "bracket") {
         static const char* kIdcLabels[] = {
-            "[左右]",   "[上下]",   "[左中右]", "[上中下]",
-            "[全包]",   "[上包]",   "[下包]",   "[左包]",
-            "[左上包]", "[右上包]", "[左下包]", "[交叉]"};
+            "[左右]", "[上下]", "[左中右]", "[上中下]", "[全包]",   "[上包]",
+            "[下包]", "[左包]", "[左上包]", "[右上包]", "[左下包]", "[交叉]"};
         out += kIdcLabels[cp - 0x2FF0];
       } else if (format == "plain") {
         // 省略结构符

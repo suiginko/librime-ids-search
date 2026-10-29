@@ -39,8 +39,7 @@ using rime::Segmentation;
 constexpr char kStateProperty[] = "ids_hybrid_components";
 
 bool StartsWith(const std::string& s, const std::string& prefix) {
-  return s.size() >= prefix.size() &&
-         s.compare(0, prefix.size(), prefix) == 0;
+  return s.size() >= prefix.size() && s.compare(0, prefix.size(), prefix) == 0;
 }
 
 std::string DefaultNamespace(const rime::Ticket& ticket,
@@ -255,8 +254,8 @@ bool EnsureStoreLoaded(const HybridConfig& cfg) {
       return sd;
     return ud;
   };
-  fs::path data = resolve(cfg.data_path.empty() ? "ids_data.bin"
-                                                 : cfg.data_path);
+  fs::path data =
+      resolve(cfg.data_path.empty() ? "ids_data.bin" : cfg.data_path);
   fs::path custom;
   if (!cfg.custom_path.empty())
     custom = resolve(cfg.custom_path);
@@ -272,8 +271,7 @@ bool IsSingleChar(const std::string& text) {
   return Utf8Length(text) == 1 && !HasWhitespace(text);
 }
 
-void ApplyCustomDisabledBlocks(rime::hash_set<int>* disabled,
-                               bool* enabled) {
+void ApplyCustomDisabledBlocks(rime::hash_set<int>* disabled, bool* enabled) {
   IdsStore& store = IdsStore::Instance();
   for (int b : store.custom_disabled_blocks()) {
     if (disabled->insert(b).second)
@@ -293,11 +291,9 @@ IdsHybridProcessor::IdsHybridProcessor(const rime::Ticket& ticket)
   Context* ctx = engine_ ? engine_->context() : nullptr;
   if (ctx) {
     select_before_ = ctx->select_notifier().connect(
-        [this](Context* c) { OnSelectBefore(c); },
-        boost::signals2::at_front);
+        [this](Context* c) { OnSelectBefore(c); }, boost::signals2::at_front);
     select_after_ = ctx->select_notifier().connect(
-        [this](Context* c) { OnSelectAfter(c); },
-        boost::signals2::at_back);
+        [this](Context* c) { OnSelectAfter(c); }, boost::signals2::at_back);
     update_connection_ =
         ctx->update_notifier().connect([this](Context* c) { OnUpdate(c); });
   }
@@ -324,51 +320,47 @@ void IdsHybridProcessor::OnSelectBefore(Context* ctx) {
 
   selected_text_ = cand->text();
   selected_component_ = genuine ? genuine->text() : cand->text();
+  // 选择期间临时关闭自动上屏，交给 OnSelectAfter 统一处理。
+  saved_auto_commit_ = ctx->get_option("_auto_commit");
+  if (saved_auto_commit_)
+    ctx->set_option("_auto_commit", false);
 }
 
 void IdsHybridProcessor::OnSelectAfter(Context* ctx) {
   if (!has_selection_)
     return;
   has_selection_ = false;
+  const bool restore_auto_commit = saved_auto_commit_;
+  saved_auto_commit_ = false;
+
   if (selected_is_result_) {
     engine_->CommitText(selected_text_);
     ctx->Clear();
-    return;
+  } else {
+    HybridState st = ReadState(ctx, config_.prefix);
+    std::string text = selected_component_;
+    if (!text.empty() && !st.pending.empty() && st.pending[0] == '-' &&
+        text[0] != '-') {
+      text = "-" + text;
+    } else if (!text.empty() && !st.pending.empty() && st.pending[0] == '+' &&
+               text[0] != '+') {
+      text = "+" + text;
+    }
+    st.components.push_back(text);
+    st.codes.push_back(st.pending);
+    SaveState(ctx, st.components, st.codes);
+    ctx->PushInput("'");
   }
 
-  HybridState st = ReadState(ctx, config_.prefix);
-  std::string text = selected_component_;
-  if (!text.empty() && !st.pending.empty() && st.pending[0] == '-' &&
-      text[0] != '-') {
-    text = "-" + text;
-  } else if (!text.empty() && !st.pending.empty() && st.pending[0] == '+' &&
-             text[0] != '+') {
-    text = "+" + text;
-  }
-  st.components.push_back(text);
-  st.codes.push_back(st.pending);
-  SaveState(ctx, st.components, st.codes);
-  ctx->PushInput("'");
+  if (restore_auto_commit && !ctx->get_option("_auto_commit"))
+    ctx->set_option("_auto_commit", true);
 }
 
 void IdsHybridProcessor::OnUpdate(Context* ctx) {
-  if (!ctx)
+  if (!IsActive(ctx, config_.prefix))
     return;
-  const bool active = IsActive(ctx, config_.prefix);
-  if (active) {
-    if (!auto_commit_managed_) {
-      saved_auto_commit_ = ctx->get_option("_auto_commit");
-      auto_commit_managed_ = true;
-    }
-    if (ctx->get_option("_auto_commit"))
-      ctx->set_option("_auto_commit", false);
-    if (!ctx->composition().empty())
-      ctx->composition().back().prompt = config_.tips;
-  } else if (auto_commit_managed_) {
-    auto_commit_managed_ = false;
-    if (saved_auto_commit_ && !ctx->get_option("_auto_commit"))
-      ctx->set_option("_auto_commit", true);
-  }
+  if (!ctx->composition().empty())
+    ctx->composition().back().prompt = config_.tips;
 }
 
 bool IdsHybridProcessor::HandleIdsHotkey(const rime::KeyEvent& key_event,
@@ -548,8 +540,7 @@ rime::ProcessResult IdsHybridProcessor::ProcessKeyEvent(
     return rime::kNoop;
   }
   if (code == XK_space || repr == "space") {
-    if (!key_event.shift() && ctx->HasMenu() &&
-        ctx->GetSelectedCandidate()) {
+    if (!key_event.shift() && ctx->HasMenu() && ctx->GetSelectedCandidate()) {
       ctx->ConfirmCurrentSelection();
       return rime::kAccepted;
     }
@@ -558,12 +549,11 @@ rime::ProcessResult IdsHybridProcessor::ProcessKeyEvent(
 
   bool is_letter = !ctrl && !alt && repr.size() == 1 &&
                    std::isalpha(static_cast<unsigned char>(repr[0]));
-  bool is_minus = !ctrl && !alt &&
-                  (code == XK_minus || repr == "minus" || repr == "-");
-  bool is_plus =
-      !ctrl && !alt &&
-      (code == XK_plus || code == XK_equal || repr == "plus" ||
-       repr == "equal" || repr == "+" || repr == "=");
+  bool is_minus =
+      !ctrl && !alt && (code == XK_minus || repr == "minus" || repr == "-");
+  bool is_plus = !ctrl && !alt &&
+                 (code == XK_plus || code == XK_equal || repr == "plus" ||
+                  repr == "equal" || repr == "+" || repr == "=");
 
   if (is_letter || is_minus || is_plus) {
     char ch = is_minus ? '-' : (is_plus ? '+' : repr[0]);
@@ -604,7 +594,8 @@ bool IdsHybridSegmentor::Proceed(Segmentation* segmentation) {
     return false;
 
   size_t prefix_end = (start == 0) ? config_.prefix.size() : start + 1;
-  bool is_prefix = (start == 0) || (start < input.size() && input[start] == '\'');
+  bool is_prefix =
+      (start == 0) || (start < input.size() && input[start] == '\'');
 
   Segment seg;
   if (is_prefix && prefix_end < input.size()) {
@@ -707,8 +698,8 @@ void IdsHybridTranslator::BuildResultCandidates(
     uint32_t cp = store.CpOfId(id);
     std::string text = CpToUtf8(cp);
     std::string comment =
-        BuildComment(store, id, show_pinyin, show_ids, show_unicode,
-                     show_block, config_.ids_format);
+        BuildComment(store, id, show_pinyin, show_ids, show_unicode, show_block,
+                     config_.ids_format);
     auto cand = New<rime::SimpleCandidate>("ids_search", segment.start,
                                            segment.end, text, comment, preedit);
     cand->set_quality(100.0);
@@ -783,9 +774,27 @@ class HybridFilterTranslation : public rime::PrefetchTranslation {
                           bool cleaner)
       : PrefetchTranslation(translation), ctx_(ctx), cleaner_(cleaner) {}
 
+  an<Candidate> Peek() override {
+    if (exhausted())
+      return nullptr;
+    if (!cache_.empty())
+      return cache_.front();
+    if (!Replenish()) {
+      // 不要把未过滤的底层候选回退出去。
+      set_exhausted(true);
+      return nullptr;
+    }
+    return cache_.front();
+  }
+
  protected:
   bool Replenish() override {
+    // 防止底层翻译器（预测、句子等）产生海量候选时长时间扫描。
+    constexpr size_t kMaxScan = 2000;
+    size_t scanned = 0;
     while (cache_.empty()) {
+      if (scanned++ >= kMaxScan)
+        break;
       an<Candidate> next = translation_->Peek();
       if (!next) {
         translation_->Next();
@@ -807,15 +816,13 @@ class HybridFilterTranslation : public rime::PrefetchTranslation {
       Segment& seg = ctx_->composition().back();
       const bool component_stage = seg.HasTag("hanzi_component");
       if (!component_stage) {
-        // 非部件选择阶段只放行检字结果；初始 O / 结果段不接收普通单字。
         if (cleaner_)
           cache_.push_back(next);
         continue;
       }
       if (next->end() == seg.end && IsSingleChar(next->text()) &&
           seen_.insert(next->text()).second) {
-        cache_.push_back(
-            New<rime::ShadowCandidate>(next, "hanzi_component"));
+        cache_.push_back(New<rime::ShadowCandidate>(next, "hanzi_component"));
       }
     }
     return !cache_.empty();
@@ -829,19 +836,29 @@ class HybridFilterTranslation : public rime::PrefetchTranslation {
 
 }  // namespace
 
-IdsHybridFilter::IdsHybridFilter(const rime::Ticket& ticket)
-    : Filter(ticket) {
+IdsHybridFilter::IdsHybridFilter(const rime::Ticket& ticket) : Filter(ticket) {
   LoadConfig(ticket, "ids_hybrid", &name_space_, &config_);
   cleaner_ = (ticket.klass == "ids_hybrid_cleaner");
 }
 
-an<rime::Translation> IdsHybridFilter::Apply(
-    an<rime::Translation> translation,
-    rime::CandidateList* candidates) {
+an<rime::Translation> IdsHybridFilter::Apply(an<rime::Translation> translation,
+                                             rime::CandidateList* candidates) {
   (void)candidates;
   Context* ctx = engine_ ? engine_->context() : nullptr;
+  if (!ctx)
+    return translation;
+
   if (!IsActive(ctx, config_.prefix))
     return translation;
+
+  // 初始 O / 前缀段既不是部件选择段，也不是结果段。
+  // 直接返回空翻译，避免遍历完整词典或预测翻译器的海量候选。
+  if (ctx->composition().empty())
+    return New<rime::FifoTranslation>();
+  Segment& seg = ctx->composition().back();
+  if (!seg.HasTag("hanzi_component") && !seg.HasTag("ids_search"))
+    return New<rime::FifoTranslation>();
+
   return New<HybridFilterTranslation>(translation, ctx, cleaner_);
 }
 

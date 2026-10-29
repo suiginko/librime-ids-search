@@ -63,7 +63,6 @@ class IdsHybridProcessor : public rime::Processor {
   std::string selected_text_;
   std::string selected_component_;
   bool saved_auto_commit_ = false;
-  bool auto_commit_managed_ = false;
 };
 
 class IdsHybridSegmentor : public rime::Segmentor {

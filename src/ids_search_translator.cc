@@ -188,7 +188,7 @@ std::string FormatIds(const std::string& raw_ids, const std::string& format) {
     if (cp >= 0x2FF0 && cp <= 0x2FFB) {
       if (format == "bracket") {
         static const char* kIdcLabels[] = {
-            "[左右]", "[上下]", "[左中右]", "[上中下]", "[全包]", "[上包]",
+            "[左右]", "[上下]", "[左中右]", "[上中下]", "[全包]",   "[上包]",
             "[下包]", "[左包]", "[左上包]", "[右上包]", "[左下包]", "[交叉]"};
         out += kIdcLabels[cp - 0x2FF0];
       } else if (format == "plain") {

@@ -15,12 +15,11 @@ namespace ids_search {
 class IdsStore;
 
 // components 为已选部件文本（可能带前导 - / +），按输入顺序排列。
-std::vector<uint32_t> SearchHybrid(
-    IdsStore& store,
-    const std::vector<std::string>& components,
-    const std::string& mode,
-    size_t max_results,
-    const rime::hash_set<int>* disabled_blocks);
+std::vector<uint32_t> SearchHybrid(IdsStore& store,
+                                   const std::vector<std::string>& components,
+                                   const std::string& mode,
+                                   size_t max_results,
+                                   const rime::hash_set<int>* disabled_blocks);
 
 // pending 编码对应的部件单字候选（自包含，不依赖外部拼音翻译器）。
 std::vector<uint32_t> GetComponentCandidates(IdsStore& store,

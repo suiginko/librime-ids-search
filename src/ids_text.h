@@ -19,8 +19,7 @@ size_t Utf8Length(const std::string& s);
 bool IsIdc(uint32_t cp);
 bool HasWhitespace(const std::string& s);
 
-std::string Join(const std::vector<std::string>& parts,
-                 const std::string& sep);
+std::string Join(const std::vector<std::string>& parts, const std::string& sep);
 
 // 将 IDS 结构符转换为指定展示格式。
 // unicode: 保留 ⿰ 等 IDC 字符

@@ -4,7 +4,7 @@ librime 插件：**部件检字（IDS 模糊搜字）翻译器**，C++ 原生实
 
 包含两套模式：
 
-- **I 模式**：`I` + 部件/拼音，例如 `I木口`、`Ikouhao`。
+- **I 模式**：`I` + 部件/拼音，例如 `I木口`、`Ikouhao`，由原生 processor/segmentor 触发。
 - **O 模式**：`O` + 汉字、全拼、双拼混合检字，支持 `-` 减法、`+` 加法、回车字母直出、IDS 结构上屏。
 
 O 模式为**插件自包含实现**，不需要 Lua，也不依赖任何外部输入法方案。
@@ -34,6 +34,9 @@ O 模式为**插件自包含实现**，不需要 Lua，也不依赖任何外部�
 
 | 组件 | 类型 | 用途 |
 |---|---|---|
+| `ids_search_processor` | processor | I 模式首次触发 |
+| `ids_search_segmentor` | segmentor | I 模式分段与打标签 |
+| `ids_search_filter` | filter | 仅前缀 `I` 不产生候选 |
 | `ids_search_translator` | translator | I 模式检字 |
 | `ids_hybrid_processor` | processor | O 模式按键、选字、IDS 上屏 |
 | `ids_hybrid_segmentor` | segmentor | O 模式动态分段 |
@@ -52,12 +55,23 @@ O 模式为**插件自包含实现**，不需要 Lua，也不依赖任何外部�
 
 ```yaml
 engine:
+  processors:
+    - ids_search_processor
+    - ascii_composer
+    - key_binder
+    - speller
+    - punctuator
+    - selector
+    - navigator
+    - express_editor
+  segmentors:
+    - ids_search_segmentor
+    - abc_segmentor
+    - fallback_segmentor
   translators:
     - ids_search_translator
-
-recognizer:
-  patterns:
-    ids_search: '^I[^0-9,.;=\[\]\s-]*$'
+  filters:
+    - ids_search_filter
 
 ids_search:
   data_file: build/ids_data.bin
@@ -75,8 +89,9 @@ ids_search:
   # custom_file: ids_custom.txt
 ```
 
-`tag` 需要与 `recognizer` 的模式名一致；如果使用 `matcher`，它会为匹配输入打上
-`ids_search` 标签。
+I 模式由 `ids_search_processor` 接收首个大写 `I`，再由 `ids_search_segmentor`
+为输入打上 `ids_search` 标签，不再依赖 `recognizer` 或 `matcher`。
+单独的 `I` 会由 `ids_search_filter` 清空候选，只保留提示。
 
 ### IDS 展示格式
 
@@ -93,9 +108,9 @@ ids_search:
 ```yaml
 engine:
   processors:
+    - ids_search_processor
     - ids_hybrid_processor
     - ascii_composer
-    - recognizer
     - key_binder
     - speller
     - punctuator
@@ -103,8 +118,8 @@ engine:
     - navigator
     - express_editor
   segmentors:
+    - ids_search_segmentor
     - ids_hybrid_segmentor
-    - matcher
     - abc_segmentor
     - fallback_segmentor
   translators:
@@ -157,23 +172,21 @@ O 模式自带的部件候选来自 `ids_data.bin`，因此即使当前方案没
 
 ```yaml
 patch:
-  engine/processors/@before 0: ids_hybrid_processor
-  engine/segmentors/@before 0: ids_hybrid_segmentor
+  engine/processors/@before 0: ids_search_processor
+  engine/processors/@before 1: ids_hybrid_processor
+  engine/segmentors/@before 0: ids_search_segmentor
+  engine/segmentors/@before 1: ids_hybrid_segmentor
   engine/translators/+:
     - ids_search_translator
     - ids_hybrid_translator
-  engine/filters/@before 0: ids_hybrid_filter
+  engine/filters/@before 0: ids_search_filter
+  engine/filters/@before 1: ids_hybrid_filter
   engine/filters/+:
     - ids_hybrid_cleaner
 ```
 
-如果现有方案没有 `matcher`，需要为 I 模式补上：
-
-```yaml
-  engine/segmentors/+:
-    - matcher
-  recognizer/patterns/ids_search: '^I[^0-9,.;=\[\]\s-]*$'
-```
+I 模式和 O 模式都不再依赖 `recognizer/patterns/ids_search` 和 `matcher`。
+现有方案中的 `matcher`/`recognizer` 可以保留，用于其他规则。
 
 或者直接使用 `examples/ids_search.schema.yaml` 作为独立检字方案。
 

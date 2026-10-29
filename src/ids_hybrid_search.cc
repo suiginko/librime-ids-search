@@ -47,8 +47,7 @@ std::string StripSpace(const std::string& s) {
 }
 
 bool StartsWith(const std::string& s, const std::string& prefix) {
-  return s.size() >= prefix.size() &&
-         s.compare(0, prefix.size(), prefix) == 0;
+  return s.size() >= prefix.size() && s.compare(0, prefix.size(), prefix) == 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -63,13 +62,12 @@ std::string DecodeShuangpin(IdsStore& store,
     return sp;
 
   static const hash_map<std::string, std::string> kZeroVowels = {
-      {"aa", "a"},  {"ai", "ai"}, {"an", "an"}, {"ah", "ang"},
-      {"ao", "ao"}, {"ee", "e"},  {"ei", "ei"}, {"en", "en"},
-      {"eg", "eng"},{"er", "er"}, {"oo", "o"},  {"ou", "ou"}};
+      {"aa", "a"},   {"ai", "ai"}, {"an", "an"}, {"ah", "ang"},
+      {"ao", "ao"},  {"ee", "e"},  {"ei", "ei"}, {"en", "en"},
+      {"eg", "eng"}, {"er", "er"}, {"oo", "o"},  {"ou", "ou"}};
   auto z = kZeroVowels.find(sp);
-  if (z != kZeroVowels.end() &&
-      (store.valid_pinyins().count(z->second) ||
-       store.py_map().count(z->second))) {
+  if (z != kZeroVowels.end() && (store.valid_pinyins().count(z->second) ||
+                                 store.py_map().count(z->second))) {
     return z->second;
   }
 
@@ -84,26 +82,60 @@ std::string DecodeShuangpin(IdsStore& store,
   };
 
   static const hash_map<char, std::vector<std::string>> kFlypyFinals = {
-      {'q', {"iu"}},   {'w', {"ei"}},   {'r', {"uan"}},
-      {'t', {"ue", "ve"}}, {'y', {"un"}}, {'p', {"ie"}},
-      {'d', {"ai"}},   {'f', {"en"}},   {'g', {"eng"}},
-      {'h', {"ang"}},  {'j', {"an"}},   {'k', {"uai", "ing"}},
-      {'l', {"uang", "iang"}}, {'z', {"ou"}}, {'x', {"ua", "ia"}},
-      {'c', {"ao"}},   {'v', {"ui", "v"}}, {'b', {"in"}},
-      {'n', {"iao"}},  {'m', {"ian"}},  {'s', {"iong", "ong"}},
-      {'o', {"uo", "o"}}, {'u', {"u"}}, {'i', {"i"}},
-      {'a', {"a"}},    {'e', {"e"}}};
+      {'q', {"iu"}},
+      {'w', {"ei"}},
+      {'r', {"uan"}},
+      {'t', {"ue", "ve"}},
+      {'y', {"un"}},
+      {'p', {"ie"}},
+      {'d', {"ai"}},
+      {'f', {"en"}},
+      {'g', {"eng"}},
+      {'h', {"ang"}},
+      {'j', {"an"}},
+      {'k', {"uai", "ing"}},
+      {'l', {"uang", "iang"}},
+      {'z', {"ou"}},
+      {'x', {"ua", "ia"}},
+      {'c', {"ao"}},
+      {'v', {"ui", "v"}},
+      {'b', {"in"}},
+      {'n', {"iao"}},
+      {'m', {"ian"}},
+      {'s', {"iong", "ong"}},
+      {'o', {"uo", "o"}},
+      {'u', {"u"}},
+      {'i', {"i"}},
+      {'a', {"a"}},
+      {'e', {"e"}}};
 
   static const hash_map<char, std::vector<std::string>> kZrmFinals = {
-      {'q', {"iu"}},   {'w', {"ua", "ia"}}, {'r', {"uan"}},
-      {'t', {"ue", "ve"}}, {'y', {"uai", "ing"}}, {'p', {"un"}},
-      {'d', {"uang", "iang"}}, {'f', {"en"}}, {'g', {"eng"}},
-      {'h', {"ang"}},  {'j', {"an"}},   {'k', {"ao"}},
-      {'l', {"ai"}},   {'z', {"ou"}},   {'x', {"ia"}},
-      {'c', {"ch"}},   {'v', {"ui", "v"}}, {'b', {"in"}},
-      {'n', {"in"}},   {'m', {"ian"}},  {'s', {"iong", "ong"}},
-      {'o', {"uo", "o"}}, {'u', {"u"}}, {'i', {"i"}},
-      {'a', {"a"}},    {'e', {"e"}}};
+      {'q', {"iu"}},
+      {'w', {"ua", "ia"}},
+      {'r', {"uan"}},
+      {'t', {"ue", "ve"}},
+      {'y', {"uai", "ing"}},
+      {'p', {"un"}},
+      {'d', {"uang", "iang"}},
+      {'f', {"en"}},
+      {'g', {"eng"}},
+      {'h', {"ang"}},
+      {'j', {"an"}},
+      {'k', {"ao"}},
+      {'l', {"ai"}},
+      {'z', {"ou"}},
+      {'x', {"ia"}},
+      {'c', {"ch"}},
+      {'v', {"ui", "v"}},
+      {'b', {"in"}},
+      {'n', {"in"}},
+      {'m', {"ian"}},
+      {'s', {"iong", "ong"}},
+      {'o', {"uo", "o"}},
+      {'u', {"u"}},
+      {'i', {"i"}},
+      {'a', {"a"}},
+      {'e', {"e"}}};
 
   const auto& finals = (mode == "zrm") ? kZrmFinals : kFlypyFinals;
   auto fit = finals.find(sp[1]);
@@ -131,8 +163,7 @@ std::string NormalizeComponent(IdsStore& store,
   if (s.empty())
     return s;
   std::string lower = AsciiLower(s);
-  bool known = store.FindKey(s) != nullptr ||
-               store.FindKey(lower) != nullptr ||
+  bool known = store.FindKey(s) != nullptr || store.FindKey(lower) != nullptr ||
                store.py_map().count(s) || store.py_map().count(lower) ||
                store.ResolveTerm(s) != kNoToken;
   if (!known && lower.size() == 2 && IsAsciiAlphaOnly(lower)) {
@@ -253,21 +284,20 @@ std::vector<std::string> TopLeavesOfComponent(IdsStore& store,
 
 const hash_set<std::string>& AtomicComponents() {
   static const hash_set<std::string> kAtomic = {
-      "木", "氵", "水", "火", "灬", "土", "金", "钅", "日", "月", "目",
-      "口", "人", "亻", "手", "扌", "心", "忄", "女", "子", "艹", "言",
-      "讠", "石", "田", "山", "刀", "刂", "力", "又", "十", "大", "小",
-      "工", "弓", "广", "门", "马", "鸟", "鱼", "虫", "犭", "犬", "辶",
-      "宀", "冖", "穴", "竹", "⺮", "米", "糸", "纟", "车", "足", "⻊",
-      "雨", "页", "酉", "贝", "走", "身", "辛", "辰", "邑", "阝", "阜",
-      "方", "斤", "止", "歹", "殳", "毛", "氏", "气", "白", "皮", "皿",
-      "矢", "示", "礻", "禾", "立", "羽", "舟", "艮", "见", "角", "谷",
-      "豆", "豕", "豸", "赤", "革", "音", "风", "飞", "食", "饣", "首",
-      "香", "骨", "鬼", "黾", "鼎", "鼓", "鼠", "鼻", "齐", "齿", "龙",
-      "龟",
+      "木", "氵", "水", "火", "灬", "土", "金", "钅", "日", "月", "目", "口",
+      "人", "亻", "手", "扌", "心", "忄", "女", "子", "艹", "言", "讠", "石",
+      "田", "山", "刀", "刂", "力", "又", "十", "大", "小", "工", "弓", "广",
+      "门", "马", "鸟", "鱼", "虫", "犭", "犬", "辶", "宀", "冖", "穴", "竹",
+      "⺮", "米", "糸", "纟", "车", "足", "⻊", "雨", "页", "酉", "贝", "走",
+      "身", "辛", "辰", "邑", "阝", "阜", "方", "斤", "止", "歹", "殳", "毛",
+      "氏", "气", "白", "皮", "皿", "矢", "示", "礻", "禾", "立", "羽", "舟",
+      "艮", "见", "角", "谷", "豆", "豕", "豸", "赤", "革", "音", "风", "飞",
+      "食", "饣", "首", "香", "骨", "鬼", "黾", "鼎", "鼓", "鼠", "鼻", "齐",
+      "齿", "龙", "龟",
       // Canon() 归一后的代表字形
-      "⺡", "⺣", "⺅", "龵", "⺖", "⺾", "⺬", "⺭", "⻐", "⻠",
-      "⺰", "⺲", "⻌", "⻖", "⺩", "⺙", "⺹", "⻊", "⺫", "⺮",
-      "⺉", "⺶", "㇒", "㇐", "㇑", "㇔", "㇏", "㇀", "乛", "亅"};
+      "⺡", "⺣", "⺅", "龵", "⺖", "⺾", "⺬", "⺭", "⻐", "⻠", "⺰", "⺲",
+      "⻌", "⻖", "⺩", "⺙", "⺹", "⻊", "⺫", "⺮", "⺉", "⺶", "㇒", "㇐",
+      "㇑", "㇔", "㇏", "㇀", "乛", "亅"};
   return kAtomic;
 }
 
@@ -522,8 +552,7 @@ std::vector<uint32_t> RankHybrid(IdsStore& store,
   for (const auto& raw : normalized) {
     std::string c = Canon(raw);
     norm_input.push_back(c);
-    std::vector<std::string> atomics =
-        AtomicDecomposition(store, c, &cache, 0);
+    std::vector<std::string> atomics = AtomicDecomposition(store, c, &cache, 0);
     for (const auto& a : atomics) {
       AddCount(&user_atomics, a);
       user_atomic_seq.push_back(a);
@@ -544,8 +573,7 @@ std::vector<uint32_t> RankHybrid(IdsStore& store,
                                   user_atomic_seq, &cache),
                       i});
   }
-  std::sort(scored.begin(), scored.end(), [](const Scored& a,
-                                             const Scored& b) {
+  std::sort(scored.begin(), scored.end(), [](const Scored& a, const Scored& b) {
     if (a.score != b.score)
       return a.score > b.score;
     return a.index < b.index;
@@ -563,18 +591,17 @@ std::vector<uint32_t> RankHybrid(IdsStore& store,
 // 减法
 // ---------------------------------------------------------------------------
 
-std::vector<uint32_t> SubtractComponents(
-    IdsStore& store,
-    const std::vector<std::string>& base,
-    const std::vector<std::string>& neg,
-    const std::vector<std::string>& post,
-    const std::string& mode,
-    size_t max_results) {
+std::vector<uint32_t> SubtractComponents(IdsStore& store,
+                                         const std::vector<std::string>& base,
+                                         const std::vector<std::string>& neg,
+                                         const std::vector<std::string>& post,
+                                         const std::string& mode,
+                                         size_t max_results) {
   std::vector<std::string> norm_neg;
   for (const auto& n : neg) {
     std::string s = StripSpace(n);
-    if (s.size() == 2 && IsAsciiAlphaOnly(s) &&
-        !store.py_map().count(s) && !store.FindKey(s)) {
+    if (s.size() == 2 && IsAsciiAlphaOnly(s) && !store.py_map().count(s) &&
+        !store.FindKey(s)) {
       s = DecodeShuangpin(store, s, mode);
     }
     norm_neg.push_back(Canon(s));
@@ -591,8 +618,7 @@ std::vector<uint32_t> SubtractComponents(
       std::string norm_leaf = Canon(leaf);
       bool found = false;
       for (size_t i = 0; i < norm_neg.size(); ++i) {
-        if (!used_neg[i] &&
-            (norm_neg[i] == norm_leaf || norm_neg[i] == leaf)) {
+        if (!used_neg[i] && (norm_neg[i] == norm_leaf || norm_neg[i] == leaf)) {
           used_neg[i] = true;
           ++matched;
           found = true;
@@ -623,12 +649,11 @@ std::vector<uint32_t> SubtractComponents(
 
 }  // namespace
 
-std::vector<uint32_t> SearchHybrid(
-    IdsStore& store,
-    const std::vector<std::string>& components,
-    const std::string& mode,
-    size_t max_results,
-    const rime::hash_set<int>* disabled_blocks) {
+std::vector<uint32_t> SearchHybrid(IdsStore& store,
+                                   const std::vector<std::string>& components,
+                                   const std::string& mode,
+                                   size_t max_results,
+                                   const rime::hash_set<int>* disabled_blocks) {
   if (components.empty())
     return {};
 
@@ -676,14 +701,13 @@ std::vector<uint32_t> SearchHybrid(
     }
   }
 
-  std::vector<uint32_t> cands =
-      IntersectPostings(store, order, counts, std::max<size_t>(5000, max_results));
+  std::vector<uint32_t> cands = IntersectPostings(
+      store, order, counts, std::max<size_t>(5000, max_results));
   if (disabled_blocks) {
     cands.erase(std::remove_if(cands.begin(), cands.end(),
                                [&](uint32_t id) {
-                                 return disabled_blocks->count(
-                                            static_cast<int>(store.Hot(id).block)) >
-                                        0;
+                                 return disabled_blocks->count(static_cast<int>(
+                                            store.Hot(id).block)) > 0;
                                }),
                 cands.end());
   }

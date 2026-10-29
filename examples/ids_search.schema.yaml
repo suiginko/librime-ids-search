@@ -24,9 +24,9 @@ switches:
 
 engine:
   processors:
+    - ids_search_processor
     - ids_hybrid_processor
     - ascii_composer
-    - recognizer
     - key_binder
     - speller
     - punctuator
@@ -34,8 +34,8 @@ engine:
     - navigator
     - express_editor
   segmentors:
+    - ids_search_segmentor
     - ids_hybrid_segmentor
-    - matcher
     - abc_segmentor
     - fallback_segmentor
   translators:
@@ -43,6 +43,7 @@ engine:
     - ids_search_translator
     - ids_hybrid_translator
   filters:
+    - ids_search_filter
     - ids_hybrid_filter
     - uniquifier
     - ids_hybrid_cleaner
@@ -50,10 +51,6 @@ engine:
 speller:
   alphabet: "abcdefghijklmnopqrstuvwxyz'"
   delimiter: " '"
-
-recognizer:
-  patterns:
-    ids_search: '^I[^0-9,.;=\[\]\s-]*$'
 
 menu:
   page_size: 5
