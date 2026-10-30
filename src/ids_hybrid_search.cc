@@ -737,11 +737,11 @@ std::vector<uint32_t> SearchHybrid(IdsStore& store,
     }
   }
 
-  // 若为纯减法运算（如 龍-立 得到 月, 𳑳；龍-立月 得到 𳑳；佩-亻 得到 𫥞；森-木 得到 林）
-  // 无论剩余一个还是多个部件，直接将扣除后的全部残余部件列为候选输出
-  if (pure_sub && has_sub && !current_comps.empty()) {
-    std::vector<uint32_t> sub_results;
-    hash_set<uint32_t> seen;
+  // 减法残余部件（第 1 梯队置顶候选）
+  std::vector<uint32_t> sub_results;
+  hash_set<uint32_t> sub_seen;
+
+  if (has_sub && !current_comps.empty()) {
     for (const auto& c : current_comps) {
       std::string std_c = ToStandardChar(c);
       size_t pos = 0;
@@ -752,18 +752,16 @@ std::vector<uint32_t> SearchHybrid(IdsStore& store,
         cp = DecodeNext(c, &pos);
         id = store.IdOfCp(cp);
       }
-      if (id != kInvalidId && seen.insert(id).second) {
+      if (id != kInvalidId && sub_seen.insert(id).second) {
         sub_results.push_back(id);
       }
-    }
-    if (!sub_results.empty()) {
-      return sub_results;
     }
   }
 
   if (current_comps.empty())
-    return {};
+    return sub_results;
 
+  // 检索“包含剩下部件的字”（第 2 梯队衍生候选）
   std::vector<std::string> normalized;
   for (const auto& raw : current_comps) {
     std::string n = NormalizeComponent(store, raw, mode);
@@ -771,7 +769,7 @@ std::vector<uint32_t> SearchHybrid(IdsStore& store,
       normalized.push_back(n);
   }
   if (normalized.empty())
-    return {};
+    return sub_results;
 
   std::vector<std::string> order;
   std::vector<int> counts;
@@ -804,9 +802,18 @@ std::vector<uint32_t> SearchHybrid(IdsStore& store,
                 cands.end());
   }
   cands = RankHybrid(store, std::move(cands), normalized);
-  if (cands.size() > max_results)
-    cands.resize(max_results);
-  return cands;
+
+  // 组合最终候选：残余部件置顶 -> 包含剩下部件的衍生字紧随其后（按黄金打分高匹配度优先）
+  std::vector<uint32_t> final_results = sub_results;
+  for (uint32_t id : cands) {
+    if (!sub_seen.count(id)) {
+      final_results.push_back(id);
+    }
+  }
+
+  if (final_results.size() > max_results)
+    final_results.resize(max_results);
+  return final_results;
 }
 
 std::vector<uint32_t> GetComponentCandidates(IdsStore& store,
