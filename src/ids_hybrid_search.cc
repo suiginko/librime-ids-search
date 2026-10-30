@@ -577,6 +577,26 @@ std::vector<uint32_t> RankHybrid(IdsStore& store,
 // 递归抠除与连续代数运算（支持多层级深层结构折叠展开，如 龍 - 立月 = 𳑳）
 // ---------------------------------------------------------------------------
 
+std::string ToStandardChar(const std::string& c) {
+  static const rime::hash_map<std::string, std::string> kStdMap = {
+      {"水", "氵"}, {"⺡", "氵"}, {"氺", "氵"},
+      {"火", "灬"}, {"⺣", "灬"},
+      {"人", "亻"}, {"𠆢", "亻"}, {"⺅", "亻"},
+      {"手", "扌"}, {"龵", "扌"},
+      {"心", "忄"}, {"⺖", "忄"}, {"⺗", "忄"},
+      {"肉", "月"}, {"⺼", "月"}, {"⺝", "月"},
+      {"艸", "艹"}, {"⺾", "艹"}, {"⻀", "艹"},
+      {"示", "礻"}, {"⺬", "礻"},
+      {"衣", "衤"}, {"⺭", "衤"}, {"𧘇", "衤"},
+      {"金", "钅"}, {"釒", "钅"}, {"⻐", "钅"},
+      {"犬", "犭"}, {"⺲", "犭"},
+      {"辵", "辶"}, {"⻌", "辶"}, {"⻍", "辶"},
+      {"阜", "阝"}, {"邑", "阝"}, {"⻖", "阝"}, {"⻗", "阝"},
+  };
+  auto it = kStdMap.find(c);
+  return it != kStdMap.end() ? it->second : c;
+}
+
 bool SubtractCharacter(IdsStore& store,
                        const std::string& base_char,
                        const std::string& neg_item,
@@ -717,17 +737,27 @@ std::vector<uint32_t> SearchHybrid(IdsStore& store,
     }
   }
 
-  // 若为纯减法运算，且全部扣除后只剩下 1 个确定单字（如 龍-立月 得到 𳑳，佩-亻 得到 𫥞，森-木-木 得到 木）
-  if (pure_sub && has_sub && current_comps.size() == 1) {
-    std::string c = current_comps[0];
-    std::vector<std::string> chars = Utf8Chars(c);
-    if (chars.size() == 1) {
+  // 若为纯减法运算（如 龍-立 得到 月, 𳑳；龍-立月 得到 𳑳；佩-亻 得到 𫥞；森-木 得到 林）
+  // 无论剩余一个还是多个部件，直接将扣除后的全部残余部件列为候选输出
+  if (pure_sub && has_sub && !current_comps.empty()) {
+    std::vector<uint32_t> sub_results;
+    hash_set<uint32_t> seen;
+    for (const auto& c : current_comps) {
+      std::string std_c = ToStandardChar(c);
       size_t pos = 0;
-      uint32_t cp = DecodeNext(c, &pos);
+      uint32_t cp = DecodeNext(std_c, &pos);
       uint32_t id = store.IdOfCp(cp);
-      if (id != kInvalidId) {
-        return {id};
+      if (id == kInvalidId) {
+        pos = 0;
+        cp = DecodeNext(c, &pos);
+        id = store.IdOfCp(cp);
       }
+      if (id != kInvalidId && seen.insert(id).second) {
+        sub_results.push_back(id);
+      }
+    }
+    if (!sub_results.empty()) {
+      return sub_results;
     }
   }
 
