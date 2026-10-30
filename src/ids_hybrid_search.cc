@@ -692,36 +692,42 @@ std::vector<uint32_t> SearchHybrid(IdsStore& store,
         !store.FindKey(item)) {
       item = DecodeShuangpin(store, item, mode);
     }
-    std::string norm_item = Canon(item);
 
     if (step.op == '+') {
       if (!current_comps.empty() && has_sub) {
         pure_sub = false;
       }
-      current_comps.push_back(norm_item);
+      // 被减数汉字保留真实字形（如 龍、佩、森），避免被 Canon 强行繁转简破坏 IDS 结构
+      std::vector<std::string> chars = Utf8Chars(item);
+      if (chars.size() == 1) {
+        size_t pos = 0;
+        uint32_t cp = DecodeNext(item, &pos);
+        if (store.IdOfCp(cp) != kInvalidId) {
+          current_comps.push_back(item);
+        } else {
+          current_comps.push_back(Canon(item));
+        }
+      } else {
+        current_comps.push_back(Canon(item));
+      }
     } else if (step.op == '-') {
       has_sub = true;
+      std::string norm_item = Canon(item);
       ApplySingleSubtraction(store, &current_comps, norm_item);
     }
   }
 
-  // 若为纯减法运算（如 龍-立月 得到 𳑳，佩-亻 得到 𫥞，森-木 得到 林）
-  if (pure_sub && has_sub && !current_comps.empty()) {
-    std::vector<uint32_t> sub_results;
-    hash_set<uint32_t> seen;
-    for (const auto& c : current_comps) {
-      std::vector<std::string> chars = Utf8Chars(c);
-      if (chars.size() == 1) {
-        size_t pos = 0;
-        uint32_t cp = DecodeNext(c, &pos);
-        uint32_t id = store.IdOfCp(cp);
-        if (id != kInvalidId && seen.insert(id).second) {
-          sub_results.push_back(id);
-        }
+  // 若为纯减法运算，且全部扣除后只剩下 1 个确定单字（如 龍-立月 得到 𳑳，佩-亻 得到 𫥞，森-木-木 得到 木）
+  if (pure_sub && has_sub && current_comps.size() == 1) {
+    std::string c = current_comps[0];
+    std::vector<std::string> chars = Utf8Chars(c);
+    if (chars.size() == 1) {
+      size_t pos = 0;
+      uint32_t cp = DecodeNext(c, &pos);
+      uint32_t id = store.IdOfCp(cp);
+      if (id != kInvalidId) {
+        return {id};
       }
-    }
-    if (!sub_results.empty()) {
-      return sub_results;
     }
   }
 
